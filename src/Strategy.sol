@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+pragma solidity ^0.8.12;
+pragma abicoder v2;
 
 import {BaseStrategy} from "@yearnvaults/contracts/BaseStrategy.sol";
-import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import {
     SafeERC20,
-    SafeMath,
     IERC20,
     Address
-} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./libraries/MakerDaiDelegateLib.sol";
 
-import "../interfaces/chainlink/AggregatorInterface.sol";
-import "../interfaces/swap/ISwap.sol";
-import "../interfaces/yearn/IBaseFee.sol";
-import "../interfaces/yearn/IOSMedianizer.sol";
-import "../interfaces/yearn/IVault.sol";
+import "./interfaces/chainlink/AggregatorInterface.sol";
+import "./interfaces/swap/ISwap.sol";
+import "./interfaces/yearn/IBaseFee.sol";
+import "./interfaces/yearn/IOSMedianizer.sol";
+import "./interfaces/yearn/IVault.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
-    using SafeMath for uint256;
 
     // Units used in Maker contracts
     uint256 internal constant WAD = 10**18;
@@ -201,10 +199,8 @@ contract Strategy is BaseStrategy {
         onlyEmergencyAuthorized
     {
         require(
-            _collateralizationRatio.sub(rebalanceTolerance) >
-                MakerDaiDelegateLib.getLiquidationRatio(ilk).mul(MAX_BPS).div(
-                    RAY
-                )
+            _collateralizationRatio - rebalanceTolerance >
+                (MakerDaiDelegateLib.getLiquidationRatio(ilk) * MAX_BPS) / RAY
         ); // dev: desired collateralization ratio is too low
         collateralizationRatio = _collateralizationRatio;
     }
@@ -215,10 +211,8 @@ contract Strategy is BaseStrategy {
         onlyEmergencyAuthorized
     {
         require(
-            collateralizationRatio.sub(_rebalanceTolerance) >
-                MakerDaiDelegateLib.getLiquidationRatio(ilk).mul(MAX_BPS).div(
-                    RAY
-                )
+            collateralizationRatio - _rebalanceTolerance >
+                (MakerDaiDelegateLib.getLiquidationRatio(ilk) * MAX_BPS) / RAY
         ); // dev: desired rebalance tolerance makes allowed ratio too low
         rebalanceTolerance = _rebalanceTolerance;
     }
@@ -308,11 +302,12 @@ contract Strategy is BaseStrategy {
 
     function estimatedTotalAssets() public view override returns (uint256) {
         return
-            balanceOfWant()
-                .add(balanceOfMakerVault())
-                .add(_convertInvestmentTokenToWant(balanceOfInvestmentToken()))
-                .add(_convertInvestmentTokenToWant(_valueOfInvestment()))
-                .sub(_convertInvestmentTokenToWant(balanceOfDebt()));
+            balanceOfWant() +
+            balanceOfMakerVault() +
+            _convertInvestmentTokenToWant(balanceOfInvestmentToken()) +
+            _convertInvestmentTokenToWant(_valueOfInvestment()) + 
+            _convertInvestmentTokenToWant(_valueOfInvestment()) -
+            _convertInvestmentTokenToWant(balanceOfDebt());
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -332,12 +327,12 @@ contract Strategy is BaseStrategy {
         uint256 totalAssetsAfterProfit = estimatedTotalAssets();
 
         _profit = totalAssetsAfterProfit > totalDebt
-            ? totalAssetsAfterProfit.sub(totalDebt)
+            ? totalAssetsAfterProfit - totalDebt
             : 0;
 
         uint256 _amountFreed;
         (_amountFreed, _loss) = liquidatePosition(
-            _debtOutstanding.add(_profit)
+            _debtOutstanding + _profit
         );
         _debtPayment = Math.min(_debtOutstanding, _amountFreed);
 
@@ -346,14 +341,14 @@ contract Strategy is BaseStrategy {
             // debtOutstanding 100, profit 50, _amountFreed 100, _loss 50
             // loss should be 0, (50-50)
             // profit should endup in 0
-            _loss = _loss.sub(_profit);
+            _loss = _loss - _profit;
             _profit = 0;
         } else {
             // Example:
             // debtOutstanding 100, profit 50, _amountFreed 140, _loss 10
             // _profit should be 40, (50 profit - 10 loss)
             // loss should end up in be 0
-            _profit = _profit.sub(_loss);
+            _profit = _profit - _loss;
             _loss = 0;
         }
     }
@@ -365,17 +360,15 @@ contract Strategy is BaseStrategy {
         // Do not skip the rest of the function as it may need to repay or take on more debt
         uint256 wantBalance = balanceOfWant();
         if (wantBalance > _debtOutstanding) {
-            uint256 amountToDeposit = wantBalance.sub(_debtOutstanding);
+            uint256 amountToDeposit = wantBalance - _debtOutstanding;
             _depositToMakerVault(amountToDeposit);
         }
 
         // Allow the ratio to move a bit in either direction to avoid cycles
         uint256 currentRatio = getCurrentMakerVaultRatio();
-        if (currentRatio < collateralizationRatio.sub(rebalanceTolerance)) {
+        if (currentRatio < collateralizationRatio - rebalanceTolerance) {
             _repayDebt(currentRatio);
-        } else if (
-            currentRatio > collateralizationRatio.add(rebalanceTolerance)
-        ) {
+        } else if (currentRatio > collateralizationRatio + rebalanceTolerance) {
             _mintMoreInvestmentToken();
         }
 
@@ -396,7 +389,7 @@ contract Strategy is BaseStrategy {
         }
 
         // We only need to free the amount of want not readily available
-        uint256 amountToFree = _amountNeeded.sub(balance);
+        uint256 amountToFree = _amountNeeded - balance;
 
         uint256 price = _getWantTokenPrice();
         uint256 collateralBalance = balanceOfMakerVault();
@@ -411,10 +404,9 @@ contract Strategy is BaseStrategy {
             totalDebt = 1;
         }
 
-        uint256 toFreeIT = amountToFree.mul(price).div(WAD);
-        uint256 collateralIT = collateralBalance.mul(price).div(WAD);
-        uint256 newRatio =
-            collateralIT.sub(toFreeIT).mul(MAX_BPS).div(totalDebt);
+        uint256 toFreeIT = (amountToFree * price) / WAD;
+        uint256 collateralIT = (collateralBalance * price) / WAD;
+        uint256 newRatio = ((collateralIT - toFreeIT) * MAX_BPS) / totalDebt;
 
         // Attempt to repay necessary debt to restore the target collateralization ratio
         _repayDebt(newRatio);
@@ -435,7 +427,7 @@ contract Strategy is BaseStrategy {
         uint256 looseWant = balanceOfWant();
         if (_amountNeeded > looseWant) {
             _liquidatedAmount = looseWant;
-            _loss = _amountNeeded.sub(looseWant);
+            _loss = _amountNeeded - looseWant;
         } else {
             _liquidatedAmount = _amountNeeded;
             _loss = 0;
@@ -474,13 +466,13 @@ contract Strategy is BaseStrategy {
 
         // If we need to repay debt and are outside the tolerance bands,
         // we do it regardless of the call cost
-        if (currentRatio < collateralizationRatio.sub(rebalanceTolerance)) {
+        if (currentRatio < collateralizationRatio - rebalanceTolerance) {
             return true;
         }
 
         // Mint more DAI if possible
         return
-            currentRatio > collateralizationRatio.add(rebalanceTolerance) &&
+            currentRatio > collateralizationRatio + rebalanceTolerance &&
             balanceOfDebt() > 0 &&
             isCurrentBaseFeeAcceptable() &&
             MakerDaiDelegateLib.isDaiAvailableToMint(ilk);
@@ -516,7 +508,7 @@ contract Strategy is BaseStrategy {
         }
 
         uint256 price = uint256(chainlinkWantToETHPriceFeed.latestAnswer());
-        return _amtInWei.mul(WAD).div(price);
+        return (_amtInWei * WAD) / price;
     }
 
     // ----------------- INTERNAL FUNCTIONS SUPPORT -----------------
@@ -536,8 +528,7 @@ contract Strategy is BaseStrategy {
         // so that new_debt * desired_ratio = current_debt * current_ratio
         // new_debt = current_debt * current_ratio / desired_ratio
         // and the amount to repay is the difference between current_debt and new_debt
-        uint256 newDebt =
-            currentDebt.mul(currentRatio).div(collateralizationRatio);
+        uint256 newDebt = (currentDebt * currentRatio) / collateralizationRatio;
 
         uint256 amountToRepay;
 
@@ -549,24 +540,24 @@ contract Strategy is BaseStrategy {
             // If we sold want to repay debt we will have DAI readily available in the strategy
             // This means we need to count both yvDAI shares and current DAI balance
             uint256 totalInvestmentAvailableToRepay =
-                _valueOfInvestment().add(balanceOfInvestmentToken());
+                _valueOfInvestment() + balanceOfInvestmentToken();
 
             if (totalInvestmentAvailableToRepay >= currentDebt) {
                 // Pay the entire debt if we have enough investment token
                 amountToRepay = currentDebt;
             } else {
                 // Pay just 0.1 cent above debtFloor (best effort without liquidating want)
-                amountToRepay = currentDebt.sub(debtFloor).sub(1e15);
+                amountToRepay = currentDebt - debtFloor - 1e15;
             }
         } else {
             // If we are not near the debt floor then just pay the exact amount
             // needed to obtain a healthy collateralization ratio
-            amountToRepay = currentDebt.sub(newDebt);
+            amountToRepay = currentDebt - newDebt;
         }
 
         uint256 balanceIT = balanceOfInvestmentToken();
         if (amountToRepay > balanceIT) {
-            _withdrawFromYVault(amountToRepay.sub(balanceIT));
+            _withdrawFromYVault(amountToRepay - balanceIT);
         }
         _repayInvestmentTokenDebt(amountToRepay);
     }
@@ -574,8 +565,7 @@ contract Strategy is BaseStrategy {
     function _sellCollateralToRepayRemainingDebtIfNeeded() internal {
         uint256 currentInvestmentValue = _valueOfInvestment();
 
-        uint256 investmentLeftToAcquire =
-            balanceOfDebt().sub(currentInvestmentValue);
+        uint256 investmentLeftToAcquire = balanceOfDebt() - currentInvestmentValue;
 
         uint256 investmentLeftToAcquireInWant =
             _convertInvestmentTokenToWant(investmentLeftToAcquire);
@@ -592,9 +582,8 @@ contract Strategy is BaseStrategy {
         uint256 price = _getWantTokenPrice();
         uint256 amount = balanceOfMakerVault();
 
-        uint256 daiToMint =
-            amount.mul(price).mul(MAX_BPS).div(collateralizationRatio).div(WAD);
-        daiToMint = daiToMint.sub(balanceOfDebt());
+        uint256 daiToMint = (amount * price * MAX_BPS) / (collateralizationRatio * WAD);
+        daiToMint = daiToMint - balanceOfDebt();
         _lockCollateralAndMintDai(0, daiToMint);
     }
 
@@ -613,7 +602,7 @@ contract Strategy is BaseStrategy {
             return 0;
         }
         yVault.withdraw(sharesToWithdraw, address(this), maxLoss);
-        return balanceOfInvestmentToken().sub(balancePrior);
+        return balanceOfInvestmentToken() - balancePrior;
     }
 
     function _depositInvestmentTokenInYVault() internal {
@@ -656,8 +645,8 @@ contract Strategy is BaseStrategy {
             // the DAI amount by the accumulated stability fee rate.
             // To circumvent this issue we will add 1 Wei to the amount to be paid
             // if there is enough investment token balance (DAI) to do it.
-            if (debt.sub(amount) == 0 && balanceIT.sub(amount) >= 1) {
-                amount = amount.add(1);
+            if (debt - amount == 0 && balanceIT - amount >= 1) {
+                amount = amount + 1;
             }
 
             // Repay debt amount without unlocking collateral
@@ -683,7 +672,7 @@ contract Strategy is BaseStrategy {
             return;
         }
 
-        uint256 profit = _valueInVault.sub(_debt);
+        uint256 profit = _valueInVault - _debt;
         uint256 ySharesToWithdraw = _investmentTokenToYShares(profit);
         if (ySharesToWithdraw > 0) {
             yVault.withdraw(ySharesToWithdraw, address(this), maxLoss);
@@ -703,8 +692,7 @@ contract Strategy is BaseStrategy {
         _checkAllowance(gemJoinAdapter, address(want), amount);
 
         uint256 price = _getWantTokenPrice();
-        uint256 daiToMint =
-            amount.mul(price).mul(MAX_BPS).div(collateralizationRatio).div(WAD);
+        uint256 daiToMint = (amount * price * MAX_BPS) / (collateralizationRatio * WAD);
 
         _lockCollateralAndMintDai(amount, daiToMint);
     }
@@ -727,19 +715,15 @@ contract Strategy is BaseStrategy {
         // Min collateral in want that needs to be locked with the outstanding debt
         // Allow going to the lower rebalancing band
         uint256 minCollateral =
-            collateralizationRatio
-                .sub(rebalanceTolerance)
-                .mul(totalDebt)
-                .mul(WAD)
-                .div(price)
-                .div(MAX_BPS);
+            ((collateralizationRatio - rebalanceTolerance) * totalDebt * WAD) / 
+            (price * MAX_BPS);
 
         // If we are under collateralized then it is not safe for us to withdraw anything
         if (minCollateral > totalCollateral) {
             return 0;
         }
 
-        return totalCollateral.sub(minCollateral);
+        return totalCollateral - minCollateral;
     }
 
     // ----------------- PUBLIC BALANCES AND CALCS -----------------
@@ -826,14 +810,12 @@ contract Strategy is BaseStrategy {
 
         // par is crucial to this calculation as it defines the relationship between DAI and
         // 1 unit of value in the price
-        return minPrice.mul(RAY).div(MakerDaiDelegateLib.getDaiPar());
+        return (minPrice * RAY) / MakerDaiDelegateLib.getDaiPar();
     }
 
     function _valueOfInvestment() internal view returns (uint256) {
         return
-            yVault.balanceOf(address(this)).mul(yVault.pricePerShare()).div(
-                10**yVault.decimals()
-            );
+            (yVault.balanceOf(address(this)) * yVault.pricePerShare()) / 10**yVault.decimals();
     }
 
     function _investmentTokenToYShares(uint256 amount)
@@ -841,7 +823,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256)
     {
-        return amount.mul(10**yVault.decimals()).div(yVault.pricePerShare());
+        return (amount * 10**yVault.decimals()) / yVault.pricePerShare();
     }
 
     function _lockCollateralAndMintDai(
@@ -876,7 +858,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256)
     {
-        return amount.mul(WAD).div(_getWantTokenPrice());
+        return (amount * WAD) / _getWantTokenPrice();
     }
 
     function _getTokenOutPath(address _token_in, address _token_out)
@@ -912,7 +894,7 @@ contract Strategy is BaseStrategy {
             0,
             _getTokenOutPath(tokenA, tokenB),
             address(this),
-            now
+            block.timestamp
         );
     }
 
@@ -927,7 +909,7 @@ contract Strategy is BaseStrategy {
             type(uint256).max,
             _getTokenOutPath(address(want), address(investmentToken)),
             address(this),
-            now
+            block.timestamp
         );
     }
 }
