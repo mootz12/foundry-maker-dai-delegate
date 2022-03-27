@@ -32,7 +32,17 @@ contract StrategyMigrationTest is StrategyFixture {
 
         // Migrate to a new strategy
         vm_std_cheats.prank(strategist);
-        Strategy newStrategy = Strategy(deployStrategy(address(vault)));
+        Strategy newStrategy = Strategy(
+            deployStrategy(
+                address(vault),
+                address(yVault),
+                strategyName,
+                ilk,
+                address(gemJoin),
+                address(wantToUSDOSMProxy),
+                address(chainlinkWantToETHPriceFeed)
+            )
+        );
         vm_std_cheats.prank(gov);
         vault.migrateStrategy(address(strategy), address(newStrategy));
         assertRelApproxEq(newStrategy.estimatedTotalAssets(), _amount, DELTA);

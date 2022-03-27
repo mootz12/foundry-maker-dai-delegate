@@ -42,6 +42,23 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     address public strategist = address(6);
     address public keeper = address(7);
 
+    // Strategy specific test fixtures
+    address public yVault = address(8);
+    string public strategyName = "StrategyMakerDaiDelegate";
+    // Obtaining the bytes32 ilk (verify its validity before using)
+    // >>> ilk = ""
+    // >>> for i in "YFI-A":
+    // ...   ilk += hex(ord(i)).replace("0x","")
+    // ...
+    // >>> ilk += "0"*(64-len(ilk))
+    // >>>
+    // >>> ilk
+    // '5946492d41000000000000000000000000000000000000000000000000000000'
+    bytes32 public ilk = 0x5946492d41000000000000000000000000000000000000000000000000000000;
+    address public gemJoin = address(10);
+    address public wantToUSDOSMProxy = address(11);
+    address public chainlinkWantToETHPriceFeed = address(12);
+
     // Used for integer approximation
     uint256 public constant DELTA = 10**5;
 
@@ -52,17 +69,39 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         weth = IERC20(tokenAddrs["WETH"]);
         want = IERC20(tokenAddrs["DAI"]);
 
-        deployVaultAndStrategy(
+        // deployVaultAndStrategy (https://github.com/storming0x/foundry_strategy_mix/blob/master/src/test/utils/StrategyFixture.sol#L55)
+        // fails to build with stack too deep. 
+        // Call submethods explicitily to avoid local varaibles.
+
+        // Deploy a vault
+        deployVault(
             address(want),
             gov,
             rewards,
             "",
             "",
             guardian,
-            management,
-            keeper,
-            strategist
+            management
         );
+
+        // Deploy a strategy
+        vm_std_cheats.prank(strategist);
+        address _strategy = deployStrategy(
+            address(vault),
+            yVault,
+            strategyName,
+            ilk,
+            gemJoin,
+            wantToUSDOSMProxy,
+            chainlinkWantToETHPriceFeed
+        );
+        strategy = Strategy(_strategy);
+        vm_std_cheats.prank(strategist);
+        strategy.setKeeper(keeper);
+
+        // Attach strategy to vault
+        vm_std_cheats.prank(gov);
+        vault.addStrategy(address(strategy), 10_000, 0, type(uint256).max, 1_000);
 
         // add more labels to make your traces readable
         vm_std_cheats.label(address(vault), "Vault");
@@ -111,48 +150,26 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     }
 
     // Deploys a strategy
-    function deployStrategy(address _vault) public returns (address) {
-        Strategy _strategy = new Strategy(_vault);
-
-        return address(_strategy);
-    }
-
-    // Deploys a vault and strategy attached to vault
-    function deployVaultAndStrategy(
-        address _token,
-        address _gov,
-        address _rewards,
-        string memory _name,
-        string memory _symbol,
-        address _guardian,
-        address _management,
-        address _keeper,
-        address _strategist
-    ) public returns (address _vault, address _strategy) {
-        vm_std_cheats.prank(gov);
-        _vault = deployCode(vaultArtifact);
-        vault = IVault(_vault);
-
-        vm_std_cheats.prank(gov);
-        vault.initialize(
-            _token,
-            _gov,
-            _rewards,
-            _name,
-            _symbol,
-            _guardian,
-            _management
+    function deployStrategy(
+        address _vault,
+        address _yVault,
+        string memory _strategyName,
+        bytes32 _ilk,
+        address _gemJoin,
+        address _wantToUSDOSMProxy,
+        address _chainlinkWantToETHPriceFeed
+    ) public returns (address) {
+        Strategy _strategy = new Strategy(
+            _vault,
+            _yVault,
+            _strategyName,
+            _ilk,
+            _gemJoin,
+            _wantToUSDOSMProxy,
+            _chainlinkWantToETHPriceFeed
         );
 
-        vm_std_cheats.prank(_strategist);
-        _strategy = deployStrategy(_vault);
-        strategy = Strategy(_strategy);
-
-        vm_std_cheats.prank(_strategist);
-        strategy.setKeeper(_keeper);
-
-        vm_std_cheats.prank(gov);
-        vault.addStrategy(_strategy, 10_000, 0, type(uint256).max, 1_000);
+        return address(_strategy);
     }
 
     function _setTokenAddrs() internal {
