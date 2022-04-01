@@ -32,6 +32,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     IERC20 public want;
 
     mapping(string => address) tokenAddrs;
+    mapping(string => uint256) tokenPrices;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -43,7 +44,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     address public keeper = address(7);
 
     // Strategy specific test fixtures
-    address public yVault = address(8);
+    address public yVault = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     string public strategyName = "StrategyMakerDaiDelegate";
     // Obtaining the bytes32 ilk (verify its validity before using)
     // >>> ilk = ""
@@ -55,19 +56,27 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     // >>> ilk
     // '5946492d41000000000000000000000000000000000000000000000000000000'
     bytes32 public ilk = 0x5946492d41000000000000000000000000000000000000000000000000000000;
-    address public gemJoin = address(10);
-    address public wantToUSDOSMProxy = address(11);
-    address public chainlinkWantToETHPriceFeed = address(12);
+    address public gemJoin = 0x3ff33d9162aD47660083D7DC4bC02Fb231c81677;
+    address public wantToUSDOSMProxy = 0xCF63089A8aD2a9D8BD6Bb8022f3190EB7e1eD0f1;
+    address public chainlinkWantToETHPriceFeed = 0x7c5d4F8345e66f68099581Db340cd65B078C41f4;
 
-    // Used for integer approximation
+    uint256 public minFuzzAmt;
+    // @dev maximum amount of want tokens deposited based on @maxDollarNotional
+    uint256 public maxFuzzAmt;
+    // @dev maximum dollar amount of tokens to be deposited
+    uint256 public constant maxDollarNotional = 1_000_000;
+    uint256 public constant bigDollarNotional = 49_000_000;
     uint256 public constant DELTA = 10**5;
+    uint256 public bigAmount;
 
     function setUp() public virtual {
         _setTokenAddrs();
+        _setTokenPrices();
 
         // Choose a token from the tokenAddrs mapping, see _setTokenAddrs for options
+        string memory token = "YFI";
         weth = IERC20(tokenAddrs["WETH"]);
-        want = IERC20(tokenAddrs["DAI"]);
+        want = IERC20(tokenAddrs[token]);
 
         // deployVaultAndStrategy (https://github.com/storming0x/foundry_strategy_mix/blob/master/src/test/utils/StrategyFixture.sol#L55)
         // fails to build with stack too deep. 
@@ -99,9 +108,27 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         vm_std_cheats.prank(strategist);
         strategy.setKeeper(keeper);
 
+        vm_std_cheats.prank(gov);
+        strategy.setLeaveDebtBehind(false);
+        vm_std_cheats.prank(gov);
+        strategy.setDoHealthCheck(true);
+
+        // Set a high acceptable max base fee to avoid changing test behavior
+        vm_std_cheats.prank(gov);
+        strategy.setMaxAcceptableBaseFee(1500 * 1e9);
+
         // Attach strategy to vault
         vm_std_cheats.prank(gov);
         vault.addStrategy(address(strategy), 10_000, 0, type(uint256).max, 1_000);
+
+        // Set fuzzing bounds
+        minFuzzAmt = 10**vault.decimals() / 10;
+        maxFuzzAmt =
+            uint256(maxDollarNotional / tokenPrices[token]) *
+            10**vault.decimals();
+        bigAmount =
+            uint256(bigDollarNotional / tokenPrices[token]) *
+            10**vault.decimals();
 
         // add more labels to make your traces readable
         vm_std_cheats.label(address(vault), "Vault");
@@ -115,6 +142,19 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         vm_std_cheats.label(management, "Management");
         vm_std_cheats.label(strategist, "Strategist");
         vm_std_cheats.label(keeper, "Keeper");
+
+        // strategy specific labels
+        vm_std_cheats.label(yVault, "yvDAI");
+        vm_std_cheats.label(gemJoin, "GemJoin");
+        vm_std_cheats.label(wantToUSDOSMProxy, "WantToUSDProxy");
+        vm_std_cheats.label(chainlinkWantToETHPriceFeed, "ChainlinkWantToEth");
+        vm_std_cheats.label(0x5ef30b9986345249bc32d8928B7ee64DE9435E39, "mkrManager");
+        vm_std_cheats.label(0x9759A6Ac90977b93B58547b4A71c78317f391A28, "mkrDaiJoin");
+        vm_std_cheats.label(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3, "mkrSpotter");
+        vm_std_cheats.label(0x19c0976f590D67707E62397C87829d896Dc0f1F1, "mkrJug");
+        vm_std_cheats.label(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3, "mkrAutoLine");
+
+        vm_std_cheats.label(tokenAddrs["DAI"], "DAI");
 
         // do here additional setup
         vm_std_cheats.prank(gov);
@@ -180,5 +220,15 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    }
+
+    function _setTokenPrices() internal {
+        tokenPrices["WBTC"] = 60_000;
+        tokenPrices["WETH"] = 4_000;
+        tokenPrices["LINK"] = 20;
+        tokenPrices["YFI"] = 35_000;
+        tokenPrices["USDT"] = 1;
+        tokenPrices["USDC"] = 1;
+        tokenPrices["DAI"] = 1;
     }
 }
