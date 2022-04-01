@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ExtendedDSTest} from "./ExtendedDSTest.sol";
 import {stdCheats} from "forge-std/stdlib.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {IVault} from "../../interfaces/Vault.sol";
+import {IVault} from "../../interfaces/yearn/IVault.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
