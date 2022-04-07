@@ -30,6 +30,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     Strategy public strategy;
     IERC20 public weth;
     IERC20 public want;
+    IERC20 public dai;
 
     mapping(string => address) tokenAddrs;
     mapping(string => uint256) tokenPrices;
@@ -77,6 +78,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         string memory token = "YFI";
         weth = IERC20(tokenAddrs["WETH"]);
         want = IERC20(tokenAddrs[token]);
+        dai = IERC20(tokenAddrs["DAI"]);
 
         // deployVaultAndStrategy (https://github.com/storming0x/foundry_strategy_mix/blob/master/src/test/utils/StrategyFixture.sol#L55)
         // fails to build with stack too deep. 
@@ -130,35 +132,11 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             uint256(bigDollarNotional / tokenPrices[token]) *
             10**vault.decimals();
 
-        // add more labels to make your traces readable
-        vm_std_cheats.label(address(vault), "Vault");
-        vm_std_cheats.label(address(strategy), "Strategy");
-        vm_std_cheats.label(address(want), "Want");
-        vm_std_cheats.label(gov, "Gov");
-        vm_std_cheats.label(user, "User");
-        vm_std_cheats.label(whale, "Whale");
-        vm_std_cheats.label(rewards, "Rewards");
-        vm_std_cheats.label(guardian, "Guardian");
-        vm_std_cheats.label(management, "Management");
-        vm_std_cheats.label(strategist, "Strategist");
-        vm_std_cheats.label(keeper, "Keeper");
-
-        // strategy specific labels
-        vm_std_cheats.label(yVault, "yvDAI");
-        vm_std_cheats.label(gemJoin, "GemJoin");
-        vm_std_cheats.label(wantToUSDOSMProxy, "WantToUSDProxy");
-        vm_std_cheats.label(chainlinkWantToETHPriceFeed, "ChainlinkWantToEth");
-        vm_std_cheats.label(0x5ef30b9986345249bc32d8928B7ee64DE9435E39, "mkrManager");
-        vm_std_cheats.label(0x9759A6Ac90977b93B58547b4A71c78317f391A28, "mkrDaiJoin");
-        vm_std_cheats.label(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3, "mkrSpotter");
-        vm_std_cheats.label(0x19c0976f590D67707E62397C87829d896Dc0f1F1, "mkrJug");
-        vm_std_cheats.label(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3, "mkrAutoLine");
-
-        vm_std_cheats.label(tokenAddrs["DAI"], "DAI");
-
         // do here additional setup
         vm_std_cheats.prank(gov);
         vault.setDepositLimit(type(uint256).max);
+
+        _setLabels();
     }
 
     // Deploys a vault
@@ -230,5 +208,33 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         tokenPrices["USDT"] = 1;
         tokenPrices["USDC"] = 1;
         tokenPrices["DAI"] = 1;
+    }
+
+    function _setLabels() internal {
+        // add more labels to make your traces readable
+        vm_std_cheats.label(address(vault), "Vault");
+        vm_std_cheats.label(address(strategy), "Strategy");
+        vm_std_cheats.label(address(want), "Want");
+        vm_std_cheats.label(gov, "Gov");
+        vm_std_cheats.label(user, "User");
+        vm_std_cheats.label(whale, "Whale");
+        vm_std_cheats.label(rewards, "Rewards");
+        vm_std_cheats.label(guardian, "Guardian");
+        vm_std_cheats.label(management, "Management");
+        vm_std_cheats.label(strategist, "Strategist");
+        vm_std_cheats.label(keeper, "Keeper");
+
+        // strategy specific labels
+        vm_std_cheats.label(yVault, "yvDAI");
+        vm_std_cheats.label(gemJoin, "GemJoin");
+        vm_std_cheats.label(wantToUSDOSMProxy, "WantToUSDProxy");
+        vm_std_cheats.label(chainlinkWantToETHPriceFeed, "ChainlinkWantToEth");
+        vm_std_cheats.label(0x5ef30b9986345249bc32d8928B7ee64DE9435E39, "mkrManager");
+        vm_std_cheats.label(0x9759A6Ac90977b93B58547b4A71c78317f391A28, "mkrDaiJoin");
+        vm_std_cheats.label(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3, "mkrSpotter");
+        vm_std_cheats.label(0x19c0976f590D67707E62397C87829d896Dc0f1F1, "mkrJug");
+        vm_std_cheats.label(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3, "mkrAutoLine");
+
+        vm_std_cheats.label(tokenAddrs["DAI"], "DAI");
     }
 }
