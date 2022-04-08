@@ -305,7 +305,6 @@ contract Strategy is BaseStrategy {
             balanceOfWant() +
             balanceOfMakerVault() +
             _convertInvestmentTokenToWant(balanceOfInvestmentToken()) +
-            _convertInvestmentTokenToWant(_valueOfInvestment()) + 
             _convertInvestmentTokenToWant(_valueOfInvestment()) -
             _convertInvestmentTokenToWant(balanceOfDebt());
     }
@@ -363,7 +362,7 @@ contract Strategy is BaseStrategy {
             uint256 amountToDeposit = wantBalance - _debtOutstanding;
             _depositToMakerVault(amountToDeposit);
         }
-
+        
         // Allow the ratio to move a bit in either direction to avoid cycles
         uint256 currentRatio = getCurrentMakerVaultRatio();
         if (currentRatio < collateralizationRatio - rebalanceTolerance) {

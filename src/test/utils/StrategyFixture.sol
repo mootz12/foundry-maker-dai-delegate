@@ -38,7 +38,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
-    address public whale = address(2);
+    address public whale = 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643;
     address public rewards = address(3);
     address public guardian = address(4);
     address public management = address(5);
@@ -76,7 +76,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
 
     function setUp() public virtual {
         actions = new Actions();
-        
+
         _setTokenAddrs();
         _setTokenPrices();
 
