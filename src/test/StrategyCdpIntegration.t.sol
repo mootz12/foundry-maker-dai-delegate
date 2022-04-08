@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.12;
 
-import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/yearn/IVault.sol";
 
@@ -23,15 +22,7 @@ contract StrategyCdpIntegrationTest is StrategyFixture {
         IVault yvDAI = strategy.yVault();
         assertEq(yvDAI.balanceOf(address(strategy)), 0);
 
-        // deposit funds into the vault
-        vm_std_cheats.prank(user);
-        want.approve(address(vault), _amount);
-        vm_std_cheats.prank(user);
-        vault.deposit(_amount);
-
-        vm_std_cheats.warp(block.timestamp + 1);
-        vm_std_cheats.prank(gov);
-        strategy.harvest();
+        actions.depositAndHarvestStrategy(user, vault, strategy, _amount);
 
         // assert minted DAI ends up in yvDAI
         assertEq(dai.balanceOf(address(strategy)), 0);
@@ -48,14 +39,7 @@ contract StrategyCdpIntegrationTest is StrategyFixture {
         assertEq(yvDAI.balanceOf(address(strategy)), 0);
 
         // deposit funds into the vault
-        vm_std_cheats.prank(user);
-        want.approve(address(vault), _amount);
-        vm_std_cheats.prank(user);
-        vault.deposit(_amount);
-
-        vm_std_cheats.warp(block.timestamp + 1);
-        vm_std_cheats.prank(gov);
-        strategy.harvest();
+        actions.depositAndHarvestStrategy(user, vault, strategy, _amount);
 
         // assert minted DAI matches collateralization ratio
         uint256 expectedRatio = strategy.collateralizationRatio();
@@ -74,15 +58,7 @@ contract StrategyCdpIntegrationTest is StrategyFixture {
         IVault yvDAI = strategy.yVault();
         assertEq(yvDAI.balanceOf(address(strategy)), 0);
 
-        // deposit funds into the vault
-        vm_std_cheats.prank(user);
-        want.approve(address(vault), _amount);
-        vm_std_cheats.prank(user);
-        vault.deposit(_amount);
-
-        vm_std_cheats.warp(block.timestamp + 1);
-        vm_std_cheats.prank(gov);
-        strategy.harvest();
+        actions.depositAndHarvestStrategy(user, vault, strategy, _amount);
 
         // assert delegated assets matches up with deposited amount
         uint256 delegatedAssets = strategy.delegatedAssets();

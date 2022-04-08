@@ -20,14 +20,7 @@ contract StrategyMigrationTest is StrategyFixture {
         tip(address(want), user, _amount);
 
         // Deposit to the vault and harvest
-        vm_std_cheats.prank(user);
-        want.approve(address(vault), _amount);
-        vm_std_cheats.prank(user);
-        vault.deposit(_amount);
-        skip(1);
-        console.log(strategy.strategist());
-        vm_std_cheats.prank(strategist);
-        strategy.harvest();
+        actions.depositAndHarvestStrategy(user, vault, strategy, _amount);
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
         // Migrate to a new strategy
@@ -43,7 +36,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 address(chainlinkWantToETHPriceFeed)
             )
         );
-        // Strategy newStrategy = 
         vm_std_cheats.label(address(newStrategy), "newStrategy");
         vm_std_cheats.prank(gov);
         vault.migrateStrategy(address(strategy), address(newStrategy));

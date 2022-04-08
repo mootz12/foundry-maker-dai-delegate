@@ -8,6 +8,7 @@ import {ExtendedDSTest} from "./ExtendedDSTest.sol";
 import {stdCheats} from "forge-std/stdlib.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/yearn/IVault.sol";
+import {Actions} from "./Actions.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
@@ -70,7 +71,12 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     uint256 public constant DELTA = 10**5;
     uint256 public bigAmount;
 
+    // utils
+    Actions actions;
+
     function setUp() public virtual {
+        actions = new Actions();
+        
         _setTokenAddrs();
         _setTokenPrices();
 
