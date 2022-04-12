@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.12;
 
+import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
+import {IVault} from "../interfaces/yearn/IVault.sol";
 
 contract StrategyShutdownTest is StrategyFixture {
     function setUp() public override {
@@ -10,7 +12,7 @@ contract StrategyShutdownTest is StrategyFixture {
 
     function testVaultShutdownCanWithdraw(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -45,8 +47,9 @@ contract StrategyShutdownTest is StrategyFixture {
     }
 
     function testBasicShutdown(uint256 _amount) public {
+        IVault yvDAI = strategy.yVault();
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -58,15 +61,19 @@ contract StrategyShutdownTest is StrategyFixture {
         assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
 
         // Harvest 1: Send funds through the strategy
-        skip(1 days);
+        skip(1);
         vm_std_cheats.prank(strategist);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-        // Earn interest
-        skip(1 days);
+        // simulate profit in yVault
+        uint256 vaultProfit = yvDAI.totalAssets() / 100;
+        tip(address(dai), whale, vaultProfit);
+        vm_std_cheats.prank(whale);
+        dai.transfer(address(yvDAI), vaultProfit);
 
         // Harvest 2: Realize profit
+        skip(1);
         vm_std_cheats.prank(strategist);
         strategy.harvest();
         skip(6 hours);
@@ -75,11 +82,13 @@ contract StrategyShutdownTest is StrategyFixture {
         vm_std_cheats.prank(strategist);
         strategy.setEmergencyExit();
 
+        skip(1);
         vm_std_cheats.prank(strategist);
         strategy.harvest(); // Remove funds from strategy
 
-        assertEq(want.balanceOf(address(strategy)), 0);
+        assertEq(vault.strategies(address(strategy)).debtRatio, 0);
+        assertEq(vault.strategies(address(strategy)).totalDebt, 0);
+        assertLt(want.balanceOf(address(strategy)), 1e5); // Expect some small amount of dust
         assertGe(want.balanceOf(address(vault)), _amount); // The vault has all funds
-        // NOTE: May want to tweak this based on potential loss during migration
     }
 }

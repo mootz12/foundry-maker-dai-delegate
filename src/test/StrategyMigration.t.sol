@@ -3,6 +3,7 @@ pragma solidity ^0.8.12;
 
 import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
+import {IVault} from "../interfaces/yearn/IVault.sol";
 import "../interfaces/yearn/IOSMedianizer.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
@@ -53,5 +54,40 @@ contract StrategyMigrationTest is StrategyFixture {
         assertEq(newStrategy.cdpId(), origCdpId);
         assertEq(vault.strategies(address(newStrategy)).totalDebt, _amount);
         assertRelApproxEq(newStrategy.estimatedTotalAssets(), _amount, DELTA);
+    }
+
+    function testYVaultMigrationWithNoAssets() public {
+        IVault yvDAI = strategy.yVault();
+        uint256 _amount = 10 * (10 ** vault.decimals());
+        tip(address(want), user, _amount);
+
+        actions.userDeposit(user, vault, _amount);
+
+        assertEq(strategy.estimatedTotalAssets(), 0);
+
+        // make new dai yVault
+        address newDaiVaultAddress = deployVault(
+            address(dai),
+            gov,
+            rewards,
+            "",
+            "",
+            guardian,
+            management
+        );
+        IVault newDaiVault = IVault(newDaiVaultAddress);
+
+        // migrate to and harvest with new vault
+        vm_std_cheats.prank(gov);
+        strategy.migrateToNewDaiYVault(newDaiVault);
+
+        skip(1);
+        vm_std_cheats.prank(gov);
+        strategy.harvest();
+
+        // assert dai deposited into new vault
+        assertGt(newDaiVault.balanceOf(address(strategy)), 0);
+        // assert old vault is empty
+        assertEq(yvDAI.balanceOf(address(strategy)), 0);
     }
 }

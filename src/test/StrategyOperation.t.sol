@@ -3,6 +3,7 @@ pragma solidity ^0.8.12;
 import "forge-std/console.sol";
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
+import {IVault} from "../interfaces/yearn/IVault.sol";
 
 contract StrategyOperationsTest is StrategyFixture {
     // setup is run on before each test
@@ -28,10 +29,11 @@ contract StrategyOperationsTest is StrategyFixture {
     /// Test Operations
     function testStrategyOperation(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
+        // deposit
         uint256 balanceBefore = want.balanceOf(address(user));
         vm_std_cheats.prank(user);
         want.approve(address(vault), _amount);
@@ -39,15 +41,17 @@ contract StrategyOperationsTest is StrategyFixture {
         vault.deposit(_amount);
         assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
 
-        // Note: need to check if this is equivalent to chain.sleep in brownie
+        // harvest
         skip(60 * 3); // skip 3 minutes
         vm_std_cheats.prank(strategist);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
+
         // tend
         vm_std_cheats.prank(strategist);
         strategy.tend();
 
+        // withdraw
         vm_std_cheats.prank(user);
         vault.withdraw();
 
@@ -56,7 +60,7 @@ contract StrategyOperationsTest is StrategyFixture {
 
     function testEmergencyExit(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -80,8 +84,9 @@ contract StrategyOperationsTest is StrategyFixture {
     }
 
     function testProfitableHarvest(uint256 _amount) public {
+        IVault yvDAI = strategy.yVault();
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -98,23 +103,27 @@ contract StrategyOperationsTest is StrategyFixture {
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-        // TODO: Add some code before harvest #2 to simulate earning yield
+        // simulate profit in yVault
+        uint256 vaultProfit = (yvDAI.totalAssets() * 2) / 100;
+        tip(address(dai), whale, vaultProfit);
+        vm_std_cheats.prank(whale);
+        dai.transfer(address(yvDAI), vaultProfit);
 
         // Harvest 2: Realize profit
+        uint256 beforePps = vault.pricePerShare();
         skip(1);
         vm_std_cheats.prank(strategist);
         strategy.harvest();
-        skip(3600 * 6);
+        skip(6 hours);
 
-        // TODO: Uncomment the lines below
-        // uint256 profit = want.balanceOf(address(vault));
-        // assertGt(want.balanceOf(address(strategy) + profit), _amount);
-        // assertGt(vault.pricePerShare(), beforePps)
+        uint256 profit = want.balanceOf(address(vault));
+        assertGt(strategy.estimatedTotalAssets() + profit, _amount);
+        assertGt(vault.pricePerShare(), beforePps);
     }
 
     function testChangeDebt(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -140,17 +149,17 @@ contract StrategyOperationsTest is StrategyFixture {
 
         // In order to pass these tests, you will need to implement prepareReturn.
         // TODO: uncomment the following lines.
-        // vm_std_cheats.prank(gov);
-        // vault.updateStrategyDebtRatio(address(strategy), 5_000);
-        // skip(1);
-        // vm_std_cheats.prank(strategist);
-        // strategy.harvest();
-        // assertRelApproxEq(strategy.estimatedTotalAssets(), half, DELTA);
+        vm_std_cheats.prank(gov);
+        vault.updateStrategyDebtRatio(address(strategy), 5_000);
+        skip(1);
+        vm_std_cheats.prank(strategist);
+        strategy.harvest();
+        assertRelApproxEq(strategy.estimatedTotalAssets(), half, DELTA);
     }
 
     function testSweep(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -168,12 +177,6 @@ contract StrategyOperationsTest is StrategyFixture {
         vm_std_cheats.prank(gov);
         vm_std_cheats.expectRevert("!shares");
         strategy.sweep(address(vault));
-
-        // TODO: If you add protected tokens to the strategy.
-        // Protected token doesn't work
-        // vm_std_cheats.prank(gov);
-        // vm_std_cheats.expectRevert("!protected");
-        // strategy.sweep(strategy.protectedToken());
 
         uint256 beforeBalance = weth.balanceOf(gov);
         uint256 wethAmount = 1 ether;
@@ -193,7 +196,7 @@ contract StrategyOperationsTest is StrategyFixture {
 
     function testTriggers(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 

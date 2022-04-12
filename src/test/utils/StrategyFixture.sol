@@ -69,15 +69,10 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     uint256 public debtFloorDai = 15_000 ether;
     // Debt ceiling is ~16m DAI for YFI-A vault.
     uint256 public debtCeilingDai = 16_410_350 ether;
-
+    
     uint256 public minFuzzAmt;
-    // @dev maximum amount of want tokens deposited based on @maxDollarNotional
     uint256 public maxFuzzAmt;
-    // @dev maximum dollar amount of tokens to be deposited
-    uint256 public constant maxDollarNotional = 1_000_000;
-    uint256 public constant bigDollarNotional = 49_000_000;
     uint256 public constant DELTA = 10**5;
-    uint256 public bigAmount;
 
     // utils
     Actions actions;
@@ -109,9 +104,6 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             management
         );
 
-        vm_std_cheats.prank(gov);
-        vault.setDepositLimit(type(uint256).max);
-
         // Deploy a test strategy
         vm_std_cheats.prank(strategist);
         address _strategy = deployTestStrategy(
@@ -141,15 +133,10 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         vm_std_cheats.prank(gov);
         vault.addStrategy(address(strategy), 10_000, 0, type(uint256).max, 1_000);
 
-        // Set fuzzing bounds
-        minFuzzAmt = 10**vault.decimals() / 10;
-        maxFuzzAmt =
-            uint256(maxDollarNotional / tokenPrices[token]) *
-            10**vault.decimals();
-        bigAmount =
-            uint256(bigDollarNotional / tokenPrices[token]) *
-            10**vault.decimals();
-
+        // Set fuzzing bounds (leave room for price movement and collat ratio (x3))
+        minFuzzAmt = ((debtFloorDai * 300) / 100) / tokenPrices[token];
+        maxFuzzAmt = ((debtCeilingDai * 33) / 100) / tokenPrices[token];
+        
         // do here additional setup
         _setLabels();
     }
@@ -164,11 +151,11 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         address _guardian,
         address _management
     ) public returns (address) {
-        vm_std_cheats.prank(gov);
+        vm_std_cheats.prank(_gov);
         address _vault = deployCode(vaultArtifact);
         vault = IVault(_vault);
 
-        vm_std_cheats.prank(gov);
+        vm_std_cheats.prank(_gov);
         vault.initialize(
             _token,
             _gov,
@@ -178,6 +165,9 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             _guardian,
             _management
         );
+
+        vm_std_cheats.prank(_gov);
+        vault.setDepositLimit(type(uint256).max);
 
         return address(vault);
     }
@@ -218,7 +208,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         tokenPrices["WBTC"] = 60_000;
         tokenPrices["WETH"] = 4_000;
         tokenPrices["LINK"] = 20;
-        tokenPrices["YFI"] = 35_000;
+        tokenPrices["YFI"] = 20_000;
         tokenPrices["USDT"] = 1;
         tokenPrices["USDC"] = 1;
         tokenPrices["DAI"] = 1;

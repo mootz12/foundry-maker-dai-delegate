@@ -10,7 +10,7 @@ contract StrategyRevokeTest is StrategyFixture {
 
     function testRevokeStrategyFromVault(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
@@ -24,19 +24,17 @@ contract StrategyRevokeTest is StrategyFixture {
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-        // In order to pass these tests, you will need to implement prepareReturn.
-        // TODO: uncomment the following lines.
-        // vm_std_cheats.prank(gov);
-        // vault.revokeStrategy(address(strategy));
-        // skip(1);
-        // vm_std_cheats.prank(strategist);
-        // strategy.harvest();
-        // assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
+        vm_std_cheats.prank(gov);
+        vault.revokeStrategy(address(strategy));
+        skip(1);
+        vm_std_cheats.prank(strategist);
+        strategy.harvest();
+        assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
     }
 
     function testRevokeStrategyFromStrategy(uint256 _amount) public {
         vm_std_cheats.assume(
-            _amount > 0.1 ether && _amount < 100_000_000 ether
+            _amount > minFuzzAmt && _amount < maxFuzzAmt
         );
         tip(address(want), user, _amount);
 
