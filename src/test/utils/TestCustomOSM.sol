@@ -10,18 +10,6 @@ contract TestCustomOSM is IOSMedianizer {
     uint256 internal futurePrice;
     bool internal revertForesight;
 
-    constructor(
-        uint256 _currentPrice,
-        bool _revertRead,
-        uint256 _futurePrice,
-        bool _revertForesight
-    ) public {
-        currentPrice = _currentPrice;
-        revertRead = _revertRead;
-        futurePrice = _futurePrice;
-        revertForesight = _revertForesight;
-    }
-
     function setCurrentPrice(uint256 _currentPrice, bool _revertRead) external {
         currentPrice = _currentPrice;
         revertRead = _revertRead;
