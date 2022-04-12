@@ -65,6 +65,10 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     address public gemJoin = 0x3ff33d9162aD47660083D7DC4bC02Fb231c81677;
     address public wantToUSDOSMProxy = 0xCF63089A8aD2a9D8BD6Bb8022f3190EB7e1eD0f1;
     address public chainlinkWantToETHPriceFeed = 0x7c5d4F8345e66f68099581Db340cd65B078C41f4;
+    // Debt floor is 15k DAI for YFI-A vault. 
+    uint256 public debtFloorDai = 15_000 ether;
+    // Debt ceiling is ~16m DAI for YFI-A vault.
+    uint256 public debtCeilingDai = 16_410_350 ether;
 
     uint256 public minFuzzAmt;
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional

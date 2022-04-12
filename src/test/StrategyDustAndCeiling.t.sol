@@ -13,11 +13,6 @@ contract StrategyDustAndCeilingTest is StrategyFixture {
         super.setUp();
     }
 
-    // Debt floor is 15k DAI for YFI-A vault. 
-    uint256 internal debtFloorDai = 15_000 ether;
-    // Debt ceiling is ~16m DAI for YFI-A vault.
-    uint256 internal debtCeilingDai = 16_410_350 ether;
-
     function testSmallDeposit_DoesNotGenerateDebtUnderFloor() public {
         IVault yvDAI = strategy.yVault();
         // The strategy should not take on any debt if deposit is less that floor.
