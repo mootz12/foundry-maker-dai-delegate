@@ -8,9 +8,6 @@ import {IVault, StrategyParams} from "../interfaces/yearn/IVault.sol";
 // used to fetch prices
 import "../libraries/MakerDaiDelegateLib.sol";
 
-// NOTE: if the name of the strat or file changes this needs to be updated
-import {Strategy} from "../Strategy.sol";
-
 contract StrategyDustAndCeilingTest is StrategyFixture {
     function setUp() public override {
         super.setUp();

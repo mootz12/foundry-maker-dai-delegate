@@ -4,10 +4,10 @@ pragma solidity ^0.8.12;
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ManagerLike} from "../interfaces/maker/IMaker.sol";
-import {Strategy} from "../Strategy.sol";
+import {TestStrategy} from "./utils/TestStrategy.sol";
 import "forge-std/console.sol";
 
-contract StrategyCdpSetup is StrategyFixture {
+contract StrategyCdpSetupTest is StrategyFixture {
     // Events to validate correct Cdp Setup
     event NewCdp(address indexed usr, address indexed own, uint indexed cdp);
 
@@ -41,7 +41,7 @@ contract StrategyCdpSetup is StrategyFixture {
         vm_std_cheats.expectEmit(false, false, false, false);
         emit NewCdp(address(strategy), address(strategy), 27958);
         vm_std_cheats.prank(strategist);
-        deployStrategy(
+        deployTestStrategy(
             address(vault),
             yVault,
             strategyName,
@@ -55,7 +55,7 @@ contract StrategyCdpSetup is StrategyFixture {
     function testDeployCreatesYFIAMakerVault() public {
         // deploy strategy
         vm_std_cheats.prank(strategist);
-        address _strategy = deployStrategy(
+        address _strategy = deployTestStrategy(
             address(vault),
             yVault,
             strategyName,
@@ -64,7 +64,7 @@ contract StrategyCdpSetup is StrategyFixture {
             wantToUSDOSMProxy,
             chainlinkWantToETHPriceFeed
         );
-        strategy = Strategy(_strategy);
+        strategy = TestStrategy(_strategy);
 
         // verify vault is of the asset type specified on creation
         ManagerLike managerLike = ManagerLike(makerManager);
@@ -75,7 +75,7 @@ contract StrategyCdpSetup is StrategyFixture {
     function testDeployStrategyOwnsMakerVault() public {
         // deploy strategy
         vm_std_cheats.prank(strategist);
-        address _strategy = deployStrategy(
+        address _strategy = deployTestStrategy(
             address(vault),
             yVault,
             strategyName,
@@ -84,7 +84,7 @@ contract StrategyCdpSetup is StrategyFixture {
             wantToUSDOSMProxy,
             chainlinkWantToETHPriceFeed
         );
-        strategy = Strategy(_strategy);
+        strategy = TestStrategy(_strategy);
 
         // verify vault is owned by the strategy
         ManagerLike managerLike = ManagerLike(makerManager);

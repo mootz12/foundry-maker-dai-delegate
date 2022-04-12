@@ -2,6 +2,7 @@
 pragma solidity ^0.8.12;
 pragma abicoder v2;
 
+import "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ExtendedDSTest} from "./ExtendedDSTest.sol";
@@ -12,6 +13,7 @@ import {Actions} from "./Actions.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
+import {TestStrategy} from "./TestStrategy.sol";
 
 // Artifact paths for deploying from the deps folder, assumes that the command is run from
 // the project root.
@@ -28,7 +30,9 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     IVault public vault;
-    Strategy public strategy;
+    // NOTE: Used for unit tests of internal functions on the Strategy
+    // TODO: See if refactor can avoid required unit testing of internal functions
+    TestStrategy public strategy;
     IERC20 public weth;
     IERC20 public want;
     IERC20 public dai;
@@ -101,9 +105,12 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             management
         );
 
-        // Deploy a strategy
+        vm_std_cheats.prank(gov);
+        vault.setDepositLimit(type(uint256).max);
+
+        // Deploy a test strategy
         vm_std_cheats.prank(strategist);
-        address _strategy = deployStrategy(
+        address _strategy = deployTestStrategy(
             address(vault),
             yVault,
             strategyName,
@@ -112,7 +119,8 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             wantToUSDOSMProxy,
             chainlinkWantToETHPriceFeed
         );
-        strategy = Strategy(_strategy);
+        strategy = TestStrategy(_strategy);
+
         vm_std_cheats.prank(strategist);
         strategy.setKeeper(keeper);
 
@@ -139,9 +147,6 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             10**vault.decimals();
 
         // do here additional setup
-        vm_std_cheats.prank(gov);
-        vault.setDepositLimit(type(uint256).max);
-
         _setLabels();
     }
 
@@ -173,8 +178,8 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         return address(vault);
     }
 
-    // Deploys a strategy
-    function deployStrategy(
+    // Deploys a test strategy
+    function deployTestStrategy(
         address _vault,
         address _yVault,
         string memory _strategyName,
@@ -183,7 +188,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         address _wantToUSDOSMProxy,
         address _chainlinkWantToETHPriceFeed
     ) public returns (address) {
-        Strategy _strategy = new Strategy(
+        TestStrategy _strategy = new TestStrategy(
             _vault,
             _yVault,
             _strategyName,
@@ -192,7 +197,6 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
             _wantToUSDOSMProxy,
             _chainlinkWantToETHPriceFeed
         );
-
         return address(_strategy);
     }
 

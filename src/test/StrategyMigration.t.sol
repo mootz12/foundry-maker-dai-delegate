@@ -6,7 +6,7 @@ import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import "../interfaces/yearn/IOSMedianizer.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
-import {Strategy} from "../Strategy.sol";
+import {TestStrategy} from "./utils/TestStrategy.sol";
 
 contract StrategyMigrationTest is StrategyFixture {
     function setUp() public override {
@@ -25,8 +25,8 @@ contract StrategyMigrationTest is StrategyFixture {
 
         // Migrate to a new strategy
         vm_std_cheats.prank(strategist);
-        Strategy newStrategy = Strategy(
-            deployStrategy(
+        TestStrategy newStrategy = TestStrategy(
+            deployTestStrategy(
                 address(vault),
                 address(yVault),
                 strategyName,

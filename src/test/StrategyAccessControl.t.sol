@@ -6,8 +6,6 @@ import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/yearn/IVault.sol";
 import {ManagerLike} from "../interfaces/maker/IMaker.sol";
 
-import {Strategy} from "../Strategy.sol";
-
 contract StrategyAccessControlTest is StrategyFixture {
     function setUp() public override {
         super.setUp();

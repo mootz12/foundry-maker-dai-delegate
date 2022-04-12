@@ -5,9 +5,6 @@ import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault, StrategyParams} from "../interfaces/yearn/IVault.sol";
 
-// NOTE: if the name of the strat or file changes this needs to be updated
-import {Strategy} from "../Strategy.sol";
-
 // TODO: Verify test is not duplicate from vault tests
 contract StrategyDebtRatioTest is StrategyFixture {
     function setUp() public override {

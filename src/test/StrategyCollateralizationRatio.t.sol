@@ -5,9 +5,6 @@ import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/yearn/IVault.sol";
 
-// NOTE: if the name of the strat or file changes this needs to be updated
-import {Strategy} from "../Strategy.sol";
-
 contract StrategyCollateralizationRatioTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
