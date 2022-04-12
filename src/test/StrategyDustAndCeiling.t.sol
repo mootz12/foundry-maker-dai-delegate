@@ -223,7 +223,6 @@ contract StrategyDustAndCeilingTest is StrategyFixture {
     }
 
     function testTendTrigger_DebtUnderDust_ReturnsFalse() public {
-        IVault yvDAI = strategy.yVault();
         // Pick amount in want that generates 'floor' debt ~5% less than threshold.
         uint256 wantPrice = MakerDaiDelegateLib.getSpotPrice(ilk);
         uint256 floorInWant = (strategy.collateralizationRatio() * debtFloorDai) / wantPrice;
@@ -233,11 +232,8 @@ contract StrategyDustAndCeilingTest is StrategyFixture {
 
         // assert tend trigger returns false
         assertTrue(!strategy.tendTrigger(1));
-    
     }
 
-    // TODO: Test failing in brownie version for revert during debt repayment.
-    //       Determine failure cause.
     function testTendTrigger_FundsInCdpButNoDebt_ReturnsFalse() public {
         IVault yvDAI = strategy.yVault();
         uint256 initialWant = 10 * (10 ** vault.decimals());
@@ -249,11 +245,8 @@ contract StrategyDustAndCeilingTest is StrategyFixture {
         vm_std_cheats.prank(whale);
         dai.transfer(address(yvDAI), profit);
         
-        // realize profit
-        vm_std_cheats.prank(gov);
-        strategy.harvest();
-        skip(7 hours); // at least 6 hrs needed for profits to unlock
-        vm_std_cheats.roll(block.number + 1);
+        // TODO: Determine if second harvest used in brownie test required.
+        //       See StrategyEmergencyDebtRepayment.t.sol#L31 for details.
 
         // repay debt
         vm_std_cheats.prank(gov);

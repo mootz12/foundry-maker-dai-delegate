@@ -50,7 +50,6 @@ contract StrategyDebtRatioTest is StrategyFixture {
 
     function testDebtRatioDecrease() public {
         uint256 _amount = 20 * (10 ** vault.decimals());
-        IVault yvDAI = strategy.yVault();
 
         vm_std_cheats.prank(gov);
         actions.depositAndHarvestStrategy(user, vault, strategy, _amount);
