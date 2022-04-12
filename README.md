@@ -1,5 +1,28 @@
 # Yearn Strategy Foundry Mix
 
+## Migration notes
+
+The repo that was migrated from brownie to foundry was [`maker-dai-delegate`](https://github.com/therealmonoloco/maker-dai-delegate).
+
+Test files that were not migrated and TODOs:
+* test_ape_tax_deployment.py
+  * Looked like this should be split up into multiple tests, but was not able to determine the requirements this tested.
+* test_clone.py
+  * Did not figure out the purpose behind cloning and these tests.
+* test_healthcheck.py
+  * This suite was purposely omitted since it appeared to be testing logic outside the Strategy.
+* Fuzzing
+  * Most fuzzing support is applied to generic tests (Operation, Shutdown, etc). The majority of the other tests didn't appear to benefit, as they tested more specific cases. I assume there is a lot of room for fuzzing improvement.
+
+### Test Suite Runtime Comparison
+
+Each project was built before testing began. Note that the brownie tests have errors and some tests weren't ported, so the tests are not a 1 to 1 match.
+
+|Forge|Brownie|
+|-|-|
+|64.83s|195.58s|
+
+
 ## What you'll find here
 
 - Basic Solidity Smart Contract for creating your own Yearn Strategy ([`Strategy.sol`](src/Strategy.sol))

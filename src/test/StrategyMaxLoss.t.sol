@@ -3,7 +3,7 @@ pragma solidity ^0.8.12;
 
 import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
-import {IVault, StrategyParams} from "../interfaces/yearn/IVault.sol";
+import {IVault} from "../interfaces/yearn/IVault.sol";
 
 contract StrategyMaxLossTest is StrategyFixture {
     // Maximum loss on withdrawal from yVault - Strategy.sol#L37
