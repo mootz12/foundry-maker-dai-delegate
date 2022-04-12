@@ -5,9 +5,6 @@ import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault, StrategyParams} from "../interfaces/yearn/IVault.sol";
 
-// used to fetch prices
-import "../libraries/MakerDaiDelegateLib.sol";
-
 contract StrategyInternalLiquidatePositionTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
